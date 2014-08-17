@@ -4,6 +4,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.*;
@@ -93,7 +95,7 @@ public interface Entity {
             @SuppressWarnings({"unchecked"})
             final A action = (A) nested.activity.get(actionType);
             if (action!=null){
-                handler.handle(action);
+                State.push(nested, e->handler.handle(action));
             }
         }
     }
@@ -168,7 +170,18 @@ public interface Entity {
         };
     }
     default void dispose(){
-        present().disposed = true;
+        final State state = present();
+        if (state == state.root) {
+            final Set<State> disposedSet = new HashSet<>();
+            for (final State nested : state.nestedSet) {
+                if (nested.disposed) {
+                    disposedSet.add(nested);
+                }
+            }
+            state.nestedSet.removeAll(disposedSet);
+        } else {
+            state.disposed = true;
+        }
     }
 
     interface Fabricator extends Entity {

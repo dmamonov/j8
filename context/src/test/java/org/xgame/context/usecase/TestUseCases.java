@@ -14,7 +14,8 @@ public class TestUseCases {
     public interface World extends Entity.Action {
         default void loop() {
             System.out.println("============== World loop: Begin ==============");
-            query(Ability.OnLoop.class, a -> a.step(0.1));
+            query(Ability.OnLoop.class, a -> a.step(0.9));
+            dispose();
         }
 
 
@@ -93,6 +94,7 @@ public class TestUseCases {
                 interface DestroyOnTimeout extends Timeout {
                     default void timeout(){
                         dispose();
+                        System.out.println("Disposed by Timeout: "+describeOneLine());
                     }
                 }
             }
@@ -175,6 +177,7 @@ public class TestUseCases {
                         change().assign(data(Domain.Hourglass.class).timeRemains(), 5.0);
                         addAction(Ability.Timeout.DestroyOnTimeout.class);
                     }
+                    System.out.println("Bullet created: "+describeOneLine());
                 }
             }
         }
@@ -247,7 +250,7 @@ public class TestUseCases {
 
             trooper1.with(e -> e.action(World.Ability.Trigger.class).fire());
 
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 10; i++) {
                 world.loop();
             }
             System.out.println("DONE");
