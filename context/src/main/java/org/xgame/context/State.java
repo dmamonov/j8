@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -18,7 +19,7 @@ class State {
     static final ThreadLocal<ArrayList<State>> stackThreadLocal = new ThreadLocal<ArrayList<State>>(){
         @Override
         protected ArrayList<State> initialValue() {
-            return new ArrayList<State>(16);
+            return new ArrayList<>(16);
         }
     };
 
@@ -39,12 +40,26 @@ class State {
                 .put(String.class, "")
                 .build();
     }
+
+    interface GetDomainValue {
+        DomainValue _getDomainValue();
+    }
     final Map<Class<? extends Entity.Data>, DomainValue> domain = new HashMap<>();
     Class<? extends Entity.Data> lastDataType = null;
     String lastDataField = null;
 
     //=== actions ===
-    final Map<Class<? extends Entity.Action>, Object> activity = new HashMap<>();
+    final Map<Class<? extends Entity.Action>, LinkedHashSet<Object>> activity = new HashMap<>();
+    void addActivity(final Class<? extends Entity.Action> actionType, final Entity.Action actionInstance){
+        final LinkedHashSet<Object> actionInstanceSet = activity.get(actionType);
+        if (actionInstanceSet!=null) {
+            actionInstanceSet.add(actionInstance);
+        } else {
+            final LinkedHashSet<Object> newActionInstanceSet = new LinkedHashSet<>();
+            newActionInstanceSet.add(actionInstance);
+            activity.put(actionType, newActionInstanceSet);
+        }
+    }
     //=== meta data ===
     boolean disposed = false;
 
@@ -86,6 +101,9 @@ class State {
     public String toString() {
         final StringBuilder result = new StringBuilder("Entity:\n");
         for (final Map.Entry<Class<? extends Entity.Data>, DomainValue> domainEntry : domain.entrySet()) {
+            if (domainEntry.getKey()==null){
+                System.out.println("oops");
+            }
             result.append("  $").append(domainEntry.getKey().getSimpleName()).append("(");
             boolean first = true;
             for (final Map.Entry<String, Object> field : domainEntry.getValue().entrySet()) {

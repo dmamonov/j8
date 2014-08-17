@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -22,16 +23,28 @@ public interface Entity {
     interface Data {
     }
 
+    default <D extends Data> D field(final Class<D> dataType){
+        final State state = present();
+        checkState(state.domain.containsKey(dataType), "No such field: %s", dataType);
+        return data(dataType);
+    }
+
     default <D extends Data> D data(final Class<D> dataType){
         //noinspection unchecked
-        return (D) Proxy.newProxyInstance(Entity.class.getClassLoader(), new Class[]{dataType}, new InvocationHandler() {
+        return (D) Proxy.newProxyInstance(Entity.class.getClassLoader(), new Class[]{dataType, State.GetDomainValue.class}, new InvocationHandler() {
+            private final State stickState = present();
             @Override
             public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
                 checkArgument(args==null);
-                final State state = present();
-                state.lastDataType = dataType;
-                state.lastDataField = method.getName();
-                final State.DomainValue value = state.domain.get(dataType);
+                final State presentState = present();
+                if (stickState==presentState) {
+                    stickState.lastDataType = dataType;
+                    stickState.lastDataField = method.getName();
+                }
+                final State.DomainValue value = stickState.domain.get(dataType);
+                if (method.getName().equals("_getDomainValue")){
+                    return value;
+                }
                 final Object result = value != null ? value.get(method.getName()) : null;
                 if (result != null) {
                     return result;
@@ -50,7 +63,11 @@ public interface Entity {
     }
 
     interface DataOperation {
-        default <T> DataOperation assign(final T marker, final T value){
+        default <T> DataOperation assign(final T marker, final T value) {
+            checkNotNull(marker);
+            checkNotNull(value);
+            checkArgument(marker.getClass()==value.getClass(), "type mismatch %s <> %s",marker,value);
+
             final State state = present();
             checkNotNull(state.lastDataType);
             checkNotNull(state.lastDataField);
@@ -58,7 +75,7 @@ public interface Entity {
             final State.DomainValue domainValue;
             {
                 final State.DomainValue storedValue = state.domain.get(state.lastDataType);
-                if (storedValue!=null){
+                if (storedValue != null) {
                     domainValue = storedValue;
                 } else {
                     domainValue = new State.DomainValue();
@@ -70,7 +87,19 @@ public interface Entity {
             return this;
         }
 
-        default <T extends Data> DataOperation assign(final Class<T> type, final T value){
+        default <T extends Data> DataOperation assign(final Class<T> type, final T valueOfType){
+            final State.DomainValue domainValue;
+            {
+                final State state = present();
+                final State.DomainValue storedValue = state.domain.get(type);
+                if (storedValue != null) {
+                    domainValue = storedValue;
+                } else {
+                    domainValue = new State.DomainValue();
+                    state.domain.put(type, domainValue);
+                }
+            }
+            domainValue.putAll(((State.GetDomainValue)valueOfType)._getDomainValue());
 
             return this;
         }
@@ -92,10 +121,12 @@ public interface Entity {
     default <A extends Action> void query(final Class<A> actionType, final ActionHandler<A> handler){
         final State state = present();
         for (final State nested : state.nestedSet) {
-            @SuppressWarnings({"unchecked"})
-            final A action = (A) nested.activity.get(actionType);
-            if (action!=null){
-                State.push(nested, e->handler.handle(action));
+            final LinkedHashSet<Object> actionSet = nested.activity.get(actionType);
+            if (actionSet!=null){
+                for (final Object action : actionSet) {
+                    //noinspection unchecked
+                    State.push(nested, e->handler.handle((A)action));
+                }
             }
         }
     }
@@ -126,21 +157,27 @@ public interface Entity {
 
     default <A extends Action> A find(final Class<A> actionType){
         final State state = present();
-        //noinspection unchecked
-        return (A) state.activity.get(actionType);
+
+        final LinkedHashSet<Object> actionSet = state.activity.get(actionType);
+        if (actionSet!=null && actionSet.size()==1){
+            //noinspection unchecked
+            return (A) actionSet.iterator().next();
+        } else {
+            return null;
+        }
     }
 
     default <A extends Action> Entity addAction(final Class<A> actionType){
         final State state = present();
         final A actionInstance = defaultInterfaceInstance(actionType);
-        state.activity.put(actionType, actionInstance);
+        state.addActivity(actionType, actionInstance);
         System.out.println("Register action: " + actionType.getSimpleName());
         for (final Class<?> subActionProposal : actionType.getInterfaces()) {
             if (Action.class.isAssignableFrom(subActionProposal) && Action.class!=subActionProposal) {
                 @SuppressWarnings("unchecked")
                 final Class<? extends Action> subAction = (Class<? extends Action>) subActionProposal;
                 System.out.println("  Also registered action: "+subAction.getSimpleName());
-                state.activity.put(subAction, actionInstance); //implement list.
+                state.addActivity(subAction, actionInstance); //implement list.
             }
         }
 

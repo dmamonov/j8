@@ -80,8 +80,7 @@ public class TestUseCases {
                 default void fire() {
                     final Weapon weapon = find(Weapon.class);
                     if (weapon != null) {
-                        final Domain.PoV sight = null;
-                        weapon.shot(sight);
+                        weapon.shot();
                     } else {
                         System.out.println("No Weapon!");
                     }
@@ -92,9 +91,9 @@ public class TestUseCases {
                 void timeout();
 
                 interface DestroyOnTimeout extends Timeout {
-                    default void timeout(){
+                    default void timeout() {
                         dispose();
-                        System.out.println("Disposed by Timeout: "+describeOneLine());
+                        System.out.println("Disposed by Timeout: " + describeOneLine());
                     }
                 }
             }
@@ -104,12 +103,12 @@ public class TestUseCases {
 
                 interface TimeoutOnLoop extends OnLoop {
                     default void step(final double timeDelta) {
-                        final Domain.Hourglass hourglass = data(Domain.Hourglass.class);
+                        final Domain.Hourglass hourglass = field(Domain.Hourglass.class);
                         change().plus(hourglass.timeRemains(), -timeDelta);
-                        if (hourglass.timeRemains()<0) {
+                        if (hourglass.timeRemains() < 0) {
                             action(Timeout.class).timeout();
                         } else {
-                            System.out.println("Time remains: "+hourglass.timeRemains());
+                            System.out.println("Time remains: " + hourglass.timeRemains());
                         }
                     }
                 }
@@ -117,12 +116,12 @@ public class TestUseCases {
                 interface MoveOnLoop extends OnLoop {
                     default void step(final double timeDelta) {
                         final double speed = 2.0;
-                        final Domain.Body body = data(Domain.Body.class);
-                        final double angleRad = body.angle360() / 360.0 * Math.PI;
+                        final Domain.Body body = field(Domain.Body.class);
+                        final double angleRad = body.angle360() / 180 * Math.PI;
                         final double dx = speed * Math.cos(angleRad);
                         final double dy = speed * Math.sin(angleRad);
                         change().plus(body.x(), dx).plus(body.y(), dy);
-                        System.out.println("Move On Loop: "+describeOneLine());
+                        System.out.println("Move On Loop: " + describeOneLine());
                     }
                 }
             }
@@ -137,8 +136,8 @@ public class TestUseCases {
                     interface Factory extends Entity, Configurer {
                         final AtomicInteger nameSeq = new AtomicInteger();
 
-                        default void setupLocation(final Domain.XY xy) {
-
+                        default void setupBody(final Domain.Body body) {
+                            change().assign(body.size(), 0.5);
                         }
 
                         default void setupName(final Domain.Name name) {
@@ -149,7 +148,7 @@ public class TestUseCases {
                         default Ref apply(final Entity entity) {
                             addAction(Ability.Trigger.class);
                             addAction(Weapon.class);
-                            setupLocation(data(Domain.XY.class));
+                            setupBody(data(Domain.Body.class));
                             setupName(data(Domain.Name.class));
                             return self();
                         }
@@ -160,24 +159,31 @@ public class TestUseCases {
         }
 
         interface Weapon extends Action {
-            default void shot(final Domain.PoV sight) {
-                create(new Bullet.Factory() {
+            default void shot() {
+                create(new Bullet.Factory(field(Domain.Body.class)) {
 
                 });
             }
         }
 
         interface Bullet {
-            interface Factory extends Fabricator {
+            class Factory implements Fabricator {
+                final Domain.Body body;
+
+                public Factory(final Domain.Body body) {
+                    this.body = body;
+                }
+
                 @Override
-                default void fabric() {
+                public void fabric() {
+                    change().assign(Domain.Body.class, body);
                     addAction(Ability.OnLoop.MoveOnLoop.class);
                     { //set finite lifetime:
                         addAction(Ability.OnLoop.TimeoutOnLoop.class);
                         change().assign(data(Domain.Hourglass.class).timeRemains(), 5.0);
                         addAction(Ability.Timeout.DestroyOnTimeout.class);
                     }
-                    System.out.println("Bullet created: "+describeOneLine());
+                    System.out.println("Bullet created: " + describeOneLine());
                 }
             }
         }
@@ -240,13 +246,15 @@ public class TestUseCases {
             //create entity with factory:
             final Entity.Ref trooper1 = root.create(new World.Humanoid.Human.Trooper.Factory() {
                 @Override
-                public void setupLocation(final World.Domain.XY xy) {
-                    change().assign(xy.x(), 1);
-                    change().assign(xy.y(), 2);
+                public void setupBody(final World.Domain.Body body) {
+                    change().assign(body.x(), 1.0)
+                            .assign(body.y(), 1.0)
+                            .assign(body.size(), 0.5)
+                            .assign(body.angle360(), 90.0);
                 }
             });
 
-            trooper1.with(e -> System.out.println(e.describe().replace('\n','~')));
+            trooper1.with(e -> System.out.println(e.describe().replace('\n', '~')));
 
             trooper1.with(e -> e.action(World.Ability.Trigger.class).fire());
 
