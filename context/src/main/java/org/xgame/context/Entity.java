@@ -21,28 +21,32 @@ import static org.xgame.context.impl.DefaultInstanceCache.defaultInterfaceInstan
 public interface Entity {
     //=== data related operations ===
     interface Data {
+        interface Field<T> {
+            T value();
+        }
     }
 
-    default <D extends Data> D field(final Class<D> dataType){
+    default <D extends Data> D field(final Class<D> dataType) {
         final State state = present();
         checkState(state.domain.containsKey(dataType), "No such field: %s", dataType);
         return data(dataType);
     }
 
-    default <D extends Data> D data(final Class<D> dataType){
+    default <D extends Data> D data(final Class<D> dataType) {
         //noinspection unchecked
         return (D) Proxy.newProxyInstance(Entity.class.getClassLoader(), new Class[]{dataType, State.GetDomainValue.class}, new InvocationHandler() {
             private final State stickState = present();
+
             @Override
             public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
-                checkArgument(args==null);
+                checkArgument(args == null);
                 final State presentState = present();
-                if (stickState==presentState) {
+                if (stickState == presentState) {
                     stickState.lastDataType = dataType;
                     stickState.lastDataField = method.getName();
                 }
                 final State.DomainValue value = stickState.domain.get(dataType);
-                if (method.getName().equals("_getDomainValue")){
+                if (method.getName().equals("_getDomainValue")) {
                     return value;
                 }
                 final Object result = value != null ? value.get(method.getName()) : null;
@@ -58,7 +62,7 @@ public interface Entity {
         });
     }
 
-    default DataOperation change(){
+    default DataOperation change() {
         return Iam.dataOperation;
     }
 
@@ -66,7 +70,7 @@ public interface Entity {
         default <T> DataOperation assign(final T marker, final T value) {
             checkNotNull(marker);
             checkNotNull(value);
-            checkArgument(marker.getClass()==value.getClass(), "type mismatch %s <> %s",marker,value);
+            checkArgument(marker.getClass() == value.getClass(), "type mismatch %s <> %s", marker, value);
 
             final State state = present();
             checkNotNull(state.lastDataType);
@@ -87,7 +91,7 @@ public interface Entity {
             return this;
         }
 
-        default <T extends Data> DataOperation assign(final Class<T> type, final T valueOfType){
+        default <D extends Data> DataOperation assign(final Class<D> type, final D valueOfType) {
             final State.DomainValue domainValue;
             {
                 final State state = present();
@@ -99,17 +103,17 @@ public interface Entity {
                     state.domain.put(type, domainValue);
                 }
             }
-            domainValue.putAll(((State.GetDomainValue)valueOfType)._getDomainValue());
+            domainValue.putAll(((State.GetDomainValue) valueOfType)._getDomainValue());
 
             return this;
         }
 
-        default DataOperation plus(final double value, final double add){
-            return assign(value, value+add);
+        default DataOperation plus(final double value, final double add) {
+            return assign(value, value + add);
         }
 
-        default DataOperation plus(final int value, final int add){
-            return assign(value, value+add);
+        default DataOperation plus(final int value, final int add) {
+            return assign(value, value + add);
         }
     }
 
@@ -118,14 +122,14 @@ public interface Entity {
         void handle(A action);
     }
 
-    default <A extends Action> void query(final Class<A> actionType, final ActionHandler<A> handler){
+    default <A extends Action> void query(final Class<A> actionType, final ActionHandler<A> handler) {
         final State state = present();
         for (final State nested : state.nestedSet) {
             final LinkedHashSet<Object> actionSet = nested.activity.get(actionType);
-            if (actionSet!=null){
+            if (actionSet != null) {
                 for (final Object action : actionSet) {
                     //noinspection unchecked
-                    State.push(nested, e->handler.handle((A)action));
+                    State.push(nested, e -> handler.handle((A) action));
                 }
             }
         }
@@ -148,18 +152,18 @@ public interface Entity {
 
     default <A extends Action> A action(final Class<A> actionType) {
         final A action = find(actionType);
-        if (action!=null){
+        if (action != null) {
             return action;
         } else {
             throw new IllegalStateException("No action: " + actionType + " in: " + describe());
         }
     }
 
-    default <A extends Action> A find(final Class<A> actionType){
+    default <A extends Action> A find(final Class<A> actionType) {
         final State state = present();
 
         final LinkedHashSet<Object> actionSet = state.activity.get(actionType);
-        if (actionSet!=null && actionSet.size()==1){
+        if (actionSet != null && actionSet.size() == 1) {
             //noinspection unchecked
             return (A) actionSet.iterator().next();
         } else {
@@ -167,16 +171,16 @@ public interface Entity {
         }
     }
 
-    default <A extends Action> Entity addAction(final Class<A> actionType){
+    default <A extends Action> Entity addAction(final Class<A> actionType) {
         final State state = present();
         final A actionInstance = defaultInterfaceInstance(actionType);
         state.addActivity(actionType, actionInstance);
         System.out.println("Register action: " + actionType.getSimpleName());
         for (final Class<?> subActionProposal : actionType.getInterfaces()) {
-            if (Action.class.isAssignableFrom(subActionProposal) && Action.class!=subActionProposal) {
+            if (Action.class.isAssignableFrom(subActionProposal) && Action.class != subActionProposal) {
                 @SuppressWarnings("unchecked")
                 final Class<? extends Action> subAction = (Class<? extends Action>) subActionProposal;
-                System.out.println("  Also registered action: "+subAction.getSimpleName());
+                System.out.println("  Also registered action: " + subAction.getSimpleName());
                 state.addActivity(subAction, actionInstance); //implement list.
             }
         }
@@ -185,7 +189,7 @@ public interface Entity {
         return this;
     }
 
-    default <A extends Action> Entity removeAction(final Class<A> actionType){
+    default <A extends Action> Entity removeAction(final Class<A> actionType) {
         final State state = present();
         state.activity.remove(actionType);
         return this;
@@ -196,7 +200,7 @@ public interface Entity {
         void with(Handler handler);
     }
 
-    default Ref self(){
+    default Ref self() {
         return new Ref() {
             private final State refState = present();
 
@@ -206,7 +210,8 @@ public interface Entity {
             }
         };
     }
-    default void dispose(){
+
+    default void dispose() {
         final State state = present();
         if (state == state.root) {
             final Set<State> disposedSet = new HashSet<>();
@@ -221,17 +226,69 @@ public interface Entity {
         }
     }
 
-    interface Fabricator extends Entity {
-        void fabric();
+    interface Fabric extends Entity {
+        void produce();
     }
 
-    default Ref create(final Configurer handler){
+    interface Constructor extends Entity {
+
+    }
+
+    default Ref create(final Configurer handler) {
         return State.pushNew(handler);
     }
 
-    default Ref create(final Fabricator fabricator){
-        return create(e->{fabricator.fabric(); return e.self();});
+    default Ref fabric(final Fabric fabricator) {
+        return create(e -> {
+            fabricator.produce();
+            return e.self();
+        });
     }
+
+
+
+    final class Builder {
+        private final Ref ref;
+
+        public Builder(final Ref ref) {
+            this.ref = checkNotNull(ref);
+        }
+
+        public Builder addAction(final Class<? extends Action> actionType) {
+            ref.with(e -> e.addAction(actionType));
+            return this;
+        }
+
+        public <D extends Data> Builder assign(final Class<D> dataType, final D dataValue) {
+            ref.with(e -> e.change().assign(dataType, dataValue));
+            return this;
+        }
+
+        public Builder with(final Handler handler){
+            ref.with(handler);
+            return this;
+        }
+
+        public Builder mixin(final Class<? extends Constructor> constructorType) {
+            ref.with(e -> {
+                try {
+                    constructorType.newInstance();
+                } catch (IllegalAccessException | InstantiationException ex) {
+                    throw new RuntimeException(ex);
+                }
+            });
+            return this;
+        }
+
+        public Ref ref() {
+            return ref;
+        }
+    }
+
+    default Builder build() {
+        return new Builder(create(Entity::self));
+    }
+
 
     default String describe() {
         return present().toString();
@@ -241,7 +298,7 @@ public interface Entity {
         return describe().replace('\n', ' ');
     }
 
-    static void seed(final Handler seeder){
+    static void seed(final Handler seeder) {
         final ArrayList<State> localStack = State.stackThreadLocal.get();
         checkState(localStack.isEmpty());
         localStack.add(new State(null)); //hide this logic in state class.
@@ -249,3 +306,4 @@ public interface Entity {
     }
 
 }
+

@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+    <title>X-Game Frontend</title>
+    <meta charset='utf-8'/>
+
+</head>
+<body>
+<img src="http://cdn.droidtune.com/wp-content/uploads/2013/01/%D0%A2%D0%B0%D0%BD%D1%87%D0%B8%D0%BA%D0%B8-1990-android.png"
+     style="display: none"
+     id="tank"/>
+<canvas width='640' height='480' id='screen'></canvas>
+<script>
+    var screen = document.getElementById("screen");
+    var g = screen.getContext('2d');
+    g.fillStyle = "#ffffff";
+    g.strokeStyle = "#df4b26";
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(screen.width, screen.height);
+    g.stroke();
+
+
+    // создать подключение
+    var socket = new WebSocket("ws://localhost:8081");
+
+    function sendOK() {
+
+    }
+
+    // обработчик входящих сообщений
+    socket.onmessage = function (event) {
+        var resp = JSON.parse(event.data);
+        console.info("Rendering: " + resp.x + ", " + resp.y);
+
+        var screen = document.getElementById("screen");
+        var g = screen.getContext('2d');
+        var img = document.getElementById('tank');
+        g.save();
+        g.scale(0.25,0.25)
+        for (var i = 0; i < 1000; i++) {
+            g.drawImage(img, resp.x-img.width+(i/10)*10, resp.y-img.height+(i%10)*10);
+        }
+        g.restore();
+
+
+        socket.send(event.data);
+//        setTimeout(function(){
+//            socket.send(event.data);
+//        }, 500);
+    };
+</script>
+</body>
+</html>

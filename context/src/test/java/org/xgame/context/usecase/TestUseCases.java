@@ -2,6 +2,8 @@ package org.xgame.context.usecase;
 
 import org.junit.Test;
 import org.xgame.context.Entity;
+import org.xgame.context.usecase.case01.Map01;
+import org.xgame.context.usecase.case01.domain.Domain;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,35 +21,7 @@ public class TestUseCases {
         }
 
 
-        interface Domain {
-            interface XY extends Data {
-                double x();
 
-                double y();
-            }
-
-            interface PoV extends XY {
-                double angle360();
-            }
-
-            interface Body extends PoV {
-                double size();
-            }
-
-
-            interface Name extends Data {
-                String name();
-            }
-
-            interface Life extends Data {
-                double bar();
-            }
-
-            interface Hourglass extends Data {
-                double timeRemains();
-            }
-
-        }
 
         interface Ability {
             interface Damageable {
@@ -160,14 +134,14 @@ public class TestUseCases {
 
         interface Weapon extends Action {
             default void shot() {
-                create(new Bullet.Factory(field(Domain.Body.class)) {
+                fabric(new Bullet.Factory(field(Domain.Body.class)) {
 
                 });
             }
         }
 
         interface Bullet {
-            class Factory implements Fabricator {
+            class Factory implements Fabric {
                 final Domain.Body body;
 
                 public Factory(final Domain.Body body) {
@@ -175,7 +149,7 @@ public class TestUseCases {
                 }
 
                 @Override
-                public void fabric() {
+                public void produce() {
                     change().assign(Domain.Body.class, body);
                     addAction(Ability.OnLoop.MoveOnLoop.class);
                     { //set finite lifetime:
@@ -188,65 +162,28 @@ public class TestUseCases {
             }
         }
 
-        interface Landscape {
-            interface Ground {
-                interface Liquid {
-
-                }
-
-                interface Solid {
-                    interface Soil {
-
-                    }
-
-                    interface Sand {
-
-                    }
-
-                    interface Scree {
-
-                    }
-
-                    interface Road {
-
-                    }
-                }
-            }
-
-            interface Wall {
-                interface ConcreteFence {
-
-                }
-
-                interface WoodenFence {
-
-                }
-            }
-
-            interface Cover {
-
-            }
-        }
     }
 
 
     @Test
     public void testCreate() throws Exception {
         Entity.seed(root -> {
+            Map01.load(root);
+
             final World world = root.addAction(World.class).action(World.class);
 
             //create named entity:
             final Entity.Ref johnDoeRef = root.create(e -> {
-                final World.Domain.Name name = e.data(World.Domain.Name.class);
+                final Domain.Name name = e.data(Domain.Name.class);
                 e.change().assign(name.name(), "John Doe");
                 return e.self();
             });
-            johnDoeRef.with(e -> System.out.println(e.data(World.Domain.Name.class).name()));
+            johnDoeRef.with(e -> System.out.println(e.data(Domain.Name.class).name()));
 
             //create entity with factory:
             final Entity.Ref trooper1 = root.create(new World.Humanoid.Human.Trooper.Factory() {
                 @Override
-                public void setupBody(final World.Domain.Body body) {
+                public void setupBody(final Domain.Body body) {
                     change().assign(body.x(), 1.0)
                             .assign(body.y(), 1.0)
                             .assign(body.size(), 0.5)
