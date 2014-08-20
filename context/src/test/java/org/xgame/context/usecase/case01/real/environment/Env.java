@@ -10,37 +10,43 @@ import org.xgame.context.usecase.case01.real.Real;
 public abstract class Env extends Real {
     protected Env() {
         field(Domain.XY.class);
-        change().assign(data(Domain.Texture.class).texture(), getClass().getSimpleName());
+        declare(Domain.Texture.class).texture(getClass().getSimpleName());
     }
 
     public static abstract class Surface extends Env {
         protected Surface() {
-            //pass
+            declare(Domain.Z.class).z(0);
         }
 
         public static abstract class Solid extends Surface {
             protected Solid() {
-
+                declare(Domain.CanStandOn.class);
+                declare(Domain.Slip.class).ratio(1.0);
             }
 
             public static final class Sand extends Solid {
                 public Sand() {
+                    field(Domain.Slip.class).ratio(0.3);
                 }
             }
 
             public static final class Scree extends Solid {
                 public Scree() {
+                    field(Domain.Slip.class).ratio(0.6);
                 }
             }
 
             public static final class Soil extends Solid {
                 public Soil() {
+                    field(Domain.Slip.class).ratio(0.8);
                 }
             }
         }
 
         public static abstract class Liquid extends Surface {
             protected Liquid() {
+                //температура замерзания
+                //
             }
 
             public static final class Water extends Liquid {

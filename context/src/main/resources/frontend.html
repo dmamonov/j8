@@ -13,7 +13,7 @@
 <script>
     var screen = document.getElementById("screen");
     var g = screen.getContext('2d');
-    g.fillStyle = "#ffffff";
+    //g.fillStyle = "#ffffff";
     g.strokeStyle = "#df4b26";
     g.beginPath();
     g.moveTo(0, 0);
@@ -31,20 +31,40 @@
     // обработчик входящих сообщений
     socket.onmessage = function (event) {
         var resp = JSON.parse(event.data);
-        console.info("Rendering: " + resp.x + ", " + resp.y);
+        console.info("Rendering: " + event.data.length);
 
         var screen = document.getElementById("screen");
         var g = screen.getContext('2d');
-        var img = document.getElementById('tank');
         g.save();
-        g.scale(0.25,0.25)
-        for (var i = 0; i < 1000; i++) {
-            g.drawImage(img, resp.x-img.width+(i/10)*10, resp.y-img.height+(i%10)*10);
-        }
+        g.scale(20.0, 20);
+        //g.translate(1, 1);
+        var totalPrinted = 0;
+        resp.nested.forEach(function (e) {
+            if (e.domain.xy && e.domain.texture) {
+                var texture = e.domain.texture.texture;
+                var x = e.domain.xy.x;
+                var y = e.domain.xy.y;
+                if (texture == 'Soil') {
+                    g.strokeStyle = "Brown";
+                } else if (texture == 'Water') {
+                    g.strokeStyle = "Blue";
+                } else if (texture == 'Sand') {
+                    g.strokeStyle = "Yellow";
+                } else {
+                    g.strokeStyle = 'Gray';
+                }
+                g.fillStyle = g.strokeStyle;
+                g.fillRect(x, y, 1, 1);
+                console.log(x, y);
+                totalPrinted+=1;
+            }
+
+        });
+        console.log("restore", totalPrinted);
         g.restore();
 
 
-        socket.send(event.data);
+        //socket.send(event.data);
 //        setTimeout(function(){
 //            socket.send(event.data);
 //        }, 500);

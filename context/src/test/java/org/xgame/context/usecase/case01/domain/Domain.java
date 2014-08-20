@@ -8,34 +8,45 @@ import org.xgame.context.Entity;
  */
 public interface Domain {
     interface XY extends Entity.Data {
-        double x();
+        double x(double... x);
 
-        double y();
+        double y(double... y);
+    }
+
+    interface Z extends Entity.Data {
+        double z(double... z);
     }
 
     interface Texture extends Entity.Data {
-        String texture();
+        String texture(String... texture);
     }
 
     interface PoV extends XY {
-        double angle360();
+        double angle360(double... angle360);
     }
 
     interface Body extends PoV {
-        double size();
+        double size(double... size);
     }
 
 
     interface Name extends Entity.Data {
-        String name();
+        String name(String... name);
     }
 
     interface Life extends Entity.Data {
-        double bar();
+        double bar(double... bar);
     }
 
     interface Hourglass extends Entity.Data {
-        double timeRemains();
+        double timeRemains(double... time);
     }
 
+
+    interface CanStandOn extends Entity.Data {
+    }
+
+    interface Slip extends Entity.Data {
+        double ratio(double... friction);
+    }
 }

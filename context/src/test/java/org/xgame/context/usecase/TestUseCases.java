@@ -1,7 +1,9 @@
 package org.xgame.context.usecase;
 
+import com.google.gson.JsonObject;
 import org.junit.Test;
 import org.xgame.context.Entity;
+import org.xgame.context.impl.Server;
 import org.xgame.context.usecase.case01.Map01;
 import org.xgame.context.usecase.case01.domain.Domain;
 
@@ -199,6 +201,9 @@ public class TestUseCases {
                 world.loop();
             }
             System.out.println("DONE");
+            final JsonObject json = root.toJson();
+            System.out.println(json.toString().length()+", "+json);
+            Server.demo(json.toString());
         });
     }
 }

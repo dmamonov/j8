@@ -1,16 +1,23 @@
 package org.xgame.context;
 
+import com.google.common.collect.Iterables;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+
+import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 
 import static com.google.common.base.Preconditions.*;
 import static org.xgame.context.Iam.entity;
+import static org.xgame.context.Iam.gson;
 import static org.xgame.context.State.present;
 import static org.xgame.context.impl.DefaultInstanceCache.defaultInterfaceInstance;
 
@@ -32,6 +39,10 @@ public interface Entity {
         return data(dataType);
     }
 
+    default <D extends Data> D declare(final Class<D> dataType) {
+        return data(dataType);
+    }
+
     default <D extends Data> D data(final Class<D> dataType) {
         //noinspection unchecked
         return (D) Proxy.newProxyInstance(Entity.class.getClassLoader(), new Class[]{dataType, State.GetDomainValue.class}, new InvocationHandler() {
@@ -39,13 +50,30 @@ public interface Entity {
 
             @Override
             public Object invoke(final Object proxy, final Method method, final Object[] args) throws Throwable {
-                checkArgument(args == null);
                 final State presentState = present();
                 if (stickState == presentState) {
                     stickState.lastDataType = dataType;
                     stickState.lastDataField = method.getName();
                 }
                 final State.DomainValue value = stickState.domain.get(dataType);
+                if (args != null) {
+                    checkArgument(args.length == 1);
+                    final Object assignValueWrapper = args[0];
+                    checkArgument(assignValueWrapper.getClass().isArray());
+                    final int assignValueSize = Array.getLength(assignValueWrapper);
+                    if (assignValueSize > 0) {
+                        checkArgument(assignValueSize == 1);
+                        final Object assignValue = Array.get(assignValueWrapper, 0);
+                        if (value != null) {
+                            value.put(method.getName(), assignValue);
+                        } else {
+                            final State.DomainValue newValue = new State.DomainValue();
+                            newValue.put(method.getName(), assignValue);
+                            stickState.domain.put(dataType, newValue);
+                        }
+                        return assignValue;
+                    }
+                }
                 if (method.getName().equals("_getDomainValue")) {
                     return value;
                 }
@@ -202,7 +230,7 @@ public interface Entity {
 
     default Ref self() {
         return new Ref() {
-            private final State refState = present();
+            private final transient State refState = present();
 
             @Override
             public void with(final Handler handler) {
@@ -246,7 +274,6 @@ public interface Entity {
     }
 
 
-
     final class Builder {
         private final Ref ref;
 
@@ -264,7 +291,7 @@ public interface Entity {
             return this;
         }
 
-        public Builder with(final Handler handler){
+        public Builder with(final Handler handler) {
             ref.with(handler);
             return this;
         }
@@ -296,6 +323,10 @@ public interface Entity {
 
     default String describeOneLine() {
         return describe().replace('\n', ' ');
+    }
+
+    default JsonObject toJson(){
+        return present().toJson();
     }
 
     static void seed(final Handler seeder) {

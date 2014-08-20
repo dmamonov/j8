@@ -25,28 +25,30 @@ public class Map01 {
 
 
         final AtomicInteger y = new AtomicInteger();
-        final AtomicInteger x = new AtomicInteger();
-        for (final String line : ImmutableList.of(
-                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-                "X                                             X",
-                "X                                             X",
-                "X                             ssssssssss      X",
-                "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWsss     X",
-                "Xsssssssssssssssssssssssssss         Wssssss  X",
-                "X                                    WWWWWWWWWW",
-                "X                                             X",
-                "X                                             X",
-                "X                                             X",
-                "X                                             X",
-                "X                                             X",
-                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-        )) {
 
+        for (final String line : ImmutableList.of(
+                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "X                              X",
+                "X                              X",
+                "X              ssssssssss      X",
+                "WWWWWWWWWWWWWWWWWWWWWWWsss     X",
+                "Xssssssssssss         Wssssss  X",
+                "X                     WWWWWWWWWW",
+                "X                              X",
+                "X                              X",
+                "X   WWW                        X",
+                "X                              X",
+                "X                              X",
+                "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        )) {
+            final AtomicInteger x = new AtomicInteger();
             for (final char code : line.toCharArray()) {
                 checkState(constructors.containsKey(code),"missing code: %s", code);
                 root.build().with(e -> {
                     final Domain.XY xy = e.data(Domain.XY.class);
-                    e.change().assign(xy.x(), (double) x.get()).assign(xy.y(), (double) y.get());
+                    xy.x(x.get());
+                    xy.y(y.get());
+                    System.out.println(xy.x()+", "+xy.y());
 
                 }).mixin(constructors.get(code));
 

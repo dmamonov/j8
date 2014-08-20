@@ -1,13 +1,15 @@
 package org.xgame.context;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -29,7 +31,10 @@ class State {
     }
 
     final State root;
-    final Set<State> nestedSet = new HashSet<>(); //make optional.
+//    final Set<State> nestedSet = new HashSet<>(); //make optional.
+    final List<State> nestedSet = new ArrayList<>(); //make optional.
+
+
 
     //=== domain ===
     static class DomainValue extends HashMap<String, Object>{
@@ -122,5 +127,37 @@ class State {
         }
 
         return result.toString();
+    }
+
+    public JsonObject toJson() {
+        final JsonObject result = new JsonObject();
+        { //domain:
+            final JsonObject domainJson = new JsonObject();
+            for (final Map.Entry<Class<? extends Entity.Data>, State.DomainValue> entry : this.domain.entrySet()) {
+                domainJson.add(entry.getKey().getSimpleName().toLowerCase(), Iam.gson.toJsonTree(entry.getValue()));
+            }
+            result.add("domain", domainJson);
+        }
+        { //actions:
+            final JsonArray actionsJson = new JsonArray();
+            for (final Class<? extends Entity.Action> action : this.activity.keySet()) {
+                actionsJson.add(new JsonPrimitive(action.getSimpleName()));
+            }
+            result.add("actions", actionsJson);
+
+        }
+        result.addProperty("disposed", this.disposed);
+        { //nested:
+            final JsonArray nestedJson = new JsonArray();
+            for (final State nested : this.nestedSet) {
+                if (nested != this) {
+                    nestedJson.add(nested.toJson());
+                }
+            }
+            result.add("nested", nestedJson);
+
+        }
+
+        return result;
     }
 }
