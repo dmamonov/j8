@@ -1,15 +1,18 @@
 package org.xgame.context.impl;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.java_websocket.WebSocket;
 import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.server.WebSocketServer;
 
-import java.awt.*;
-import java.io.File;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.function.Function;
+
+import static com.google.common.collect.ImmutableSet.copyOf;
+import static com.google.common.collect.Iterables.transform;
 
 /**
  * @author dmitry.mamonov
@@ -17,6 +20,11 @@ import java.util.function.Function;
  */
 public class Server extends WebSocketServer {
     private final Function<Long, String> stateProvider;
+    private volatile ImmutableSet<Integer> pressedKeys = ImmutableSet.of();
+
+    public ImmutableSet<Integer> getPressedKeys() {
+        return pressedKeys;
+    }
 
     public Server(final Function<Long, String> stateProvider) throws UnknownHostException {
         super(new InetSocketAddress(8081));
@@ -35,10 +43,19 @@ public class Server extends WebSocketServer {
         //System.exit(0);
     }
 
+    private String lastState = "{}";
+
     @Override
-    public void onMessage(final WebSocket webSocket, final String s) {
-        System.out.println("Reply: " + s);
-        webSocket.send(stateProvider.apply(System.currentTimeMillis()));
+    public void onMessage(final WebSocket webSocket, final String data) {
+        //System.out.println("Reply: " + data);
+        if (data != null && data.startsWith("{")) {
+            final JsonObject pressedJson = new JsonParser().parse(data).getAsJsonObject();
+            this.pressedKeys = copyOf(transform(pressedJson.entrySet(), e -> Integer.parseInt(e.getKey())));
+        }
+        final String newState = stateProvider.apply(System.currentTimeMillis());
+        if (!lastState.equals(newState)) {
+            webSocket.send(newState);
+        }
     }
 
     @Override
@@ -46,24 +63,12 @@ public class Server extends WebSocketServer {
         e.printStackTrace();
     }
 
-    public static void demo(final String json) {
+    public static Server create(final Function<Long, String> stateProvider){
         try {
-            new Server(version -> json).start();
+            return new Server(stateProvider);
         } catch (final UnknownHostException e) {
-            e.printStackTrace();
-        }
-        try {
-            Desktop.getDesktop().open(new File("context/src/main/resources/frontend.html"));
-        } catch (final IOException e) {
-            e.printStackTrace();
-        }
-        while (true) {
-            try {
-
-                Thread.sleep(1000L);
-            } catch (final InterruptedException e) {
-                e.printStackTrace();
-            }
+            throw new RuntimeException(e);
         }
     }
+
 }

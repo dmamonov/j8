@@ -19,8 +19,10 @@ public class Map01 {
         final ImmutableMap<Character, Class<? extends Entity.Constructor>> constructors = ImmutableMap.<Character, Class<? extends Entity.Constructor>>builder()
                 .put(' ', Env.Surface.Solid.Soil.class)
                 .put('s', Env.Surface.Solid.Sand.class)
+                .put('Z', Env.Surface.Solid.Scree.class)
                 .put('W', Env.Surface.Liquid.Water.class)
                 .put('X', Env.Barrier.Rock.class)
+
                 .build();
 
 
@@ -35,7 +37,7 @@ public class Map01 {
                 "Xssssssssssss         Wssssss  X",
                 "X                     WWWWWWWWWW",
                 "X                              X",
-                "X                              X",
+                "X                 Z            X",
                 "X   WWW                        X",
                 "X                              X",
                 "X                              X",
@@ -48,8 +50,6 @@ public class Map01 {
                     final Domain.XY xy = e.data(Domain.XY.class);
                     xy.x(x.get());
                     xy.y(y.get());
-                    System.out.println(xy.x()+", "+xy.y());
-
                 }).mixin(constructors.get(code));
 
                 x.incrementAndGet();

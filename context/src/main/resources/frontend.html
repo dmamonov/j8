@@ -3,14 +3,50 @@
 <head>
     <title>X-Game Frontend</title>
     <meta charset='utf-8'/>
-
+    <script language="JavaScript" src="http://code.jquery.com/jquery-1.11.1.js"></script>
 </head>
 <body>
 <img src="http://cdn.droidtune.com/wp-content/uploads/2013/01/%D0%A2%D0%B0%D0%BD%D1%87%D0%B8%D0%BA%D0%B8-1990-android.png"
      style="display: none"
      id="tank"/>
-<canvas width='640' height='480' id='screen'></canvas>
+<table>
+    <tr style="vertical-align: top">
+        <td>
+            <canvas width='640' height='480' id='screen'></canvas>
+        </td>
+        <td>
+            <span style="vertical-align: top" id="trace">=========</span>
+        </td>
+    </tr>
+</table>
 <script>
+
+    var socket = new WebSocket("ws://localhost:8081");
+    var pressed_keys = {};
+
+    function send_keys(){
+        socket.send(JSON.stringify(pressed_keys));
+    }
+
+    function screen_log(message) {
+//        $('#trace').prepend(message + '<br/>');
+        $('#trace').html(message + '<br/>');
+    }
+
+    function handle_keys(e) {
+        if (e.type == 'keydown') {
+            pressed_keys[e.keyCode] = true;
+        } else {
+            delete pressed_keys[e.keyCode];
+        }
+        screen_log('Key state: ' + JSON.stringify(pressed_keys));
+        send_keys();
+    }
+    window.addEventListener('keyup', handle_keys, false);
+    window.addEventListener('keydown', handle_keys, false);
+    document.onkeyup = handle_keys;
+
+
     var screen = document.getElementById("screen");
     var g = screen.getContext('2d');
     //g.fillStyle = "#ffffff";
@@ -20,16 +56,20 @@
     g.lineTo(screen.width, screen.height);
     g.stroke();
 
-
-    // создать подключение
-    var socket = new WebSocket("ws://localhost:8081");
-
-    function sendOK() {
-
+    function refresh(){
+        send_keys();
+        setTimeout(refresh, 100);
     }
 
-    // обработчик входящих сообщений
+
+
+    var total_fremes = 0;
+
+    socket.onopen = function(event){
+        refresh();
+    };
     socket.onmessage = function (event) {
+        var renderingStart = Date.now();
         var resp = JSON.parse(event.data);
         console.info("Rendering: " + event.data.length);
 
@@ -39,36 +79,50 @@
         g.scale(20.0, 20);
         //g.translate(1, 1);
         var totalPrinted = 0;
-        resp.nested.forEach(function (e) {
+        var renderer = function (e) {
             if (e.domain.xy && e.domain.texture) {
+                g.save();
                 var texture = e.domain.texture.texture;
                 var x = e.domain.xy.x;
                 var y = e.domain.xy.y;
                 if (texture == 'Soil') {
-                    g.strokeStyle = "Brown";
+                    g.strokeStyle = "#C19A6B";
                 } else if (texture == 'Water') {
                     g.strokeStyle = "Blue";
                 } else if (texture == 'Sand') {
                     g.strokeStyle = "Yellow";
+                } else if (texture == 'Scree') {
+                    g.strokeStyle = "Red";
                 } else {
                     g.strokeStyle = 'Gray';
                 }
                 g.fillStyle = g.strokeStyle;
                 g.fillRect(x, y, 1, 1);
                 console.log(x, y);
-                totalPrinted+=1;
+                totalPrinted += 1;
+                g.restore();
             }
 
+        };
+        resp.nested.forEach(function (e) {
+            if (e.domain.xy && e.domain.texture) {
+                if (e.domain.texture.texture != 'Scree') {
+                    renderer(e);
+                }
+            }
         });
-        console.log("restore", totalPrinted);
+        resp.nested.forEach(function (e) {
+            if (e.domain.xy && e.domain.texture) {
+                if (e.domain.texture.texture == 'Scree') {
+                    renderer(e);
+                }
+            }
+        });
         g.restore();
-
-
-        //socket.send(event.data);
-//        setTimeout(function(){
-//            socket.send(event.data);
-//        }, 500);
+        total_fremes+=1;
+        screen_log(((Date.now()-renderingStart)).toFixed(2)+", frames "+total_fremes);
     };
 </script>
+
 </body>
 </html>

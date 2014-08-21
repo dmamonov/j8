@@ -1,5 +1,6 @@
 package org.xgame.context.usecase.case01.domain;
 
+import com.google.common.collect.ImmutableSet;
 import org.xgame.context.Entity;
 
 /**
@@ -48,5 +49,9 @@ public interface Domain {
 
     interface Slip extends Entity.Data {
         double ratio(double... friction);
+    }
+
+    interface Keys extends Entity.Data{
+        ImmutableSet<Integer> pressed(ImmutableSet<Integer>... pressed);
     }
 }

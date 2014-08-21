@@ -1,6 +1,7 @@
 package org.xgame.context.usecase.case01.real.environment;
 
 import org.xgame.context.usecase.case01.domain.Domain;
+import org.xgame.context.usecase.case01.player.Avatar;
 import org.xgame.context.usecase.case01.real.Real;
 
 /**
@@ -33,6 +34,7 @@ public abstract class Env extends Real {
             public static final class Scree extends Solid {
                 public Scree() {
                     field(Domain.Slip.class).ratio(0.6);
+                    addAction(Avatar.class);
                 }
             }
 

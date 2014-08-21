@@ -1,13 +1,17 @@
 package org.xgame.context.usecase;
 
-import com.google.gson.JsonObject;
 import org.junit.Test;
 import org.xgame.context.Entity;
 import org.xgame.context.impl.Server;
 import org.xgame.context.usecase.case01.Map01;
 import org.xgame.context.usecase.case01.domain.Domain;
+import org.xgame.context.usecase.case01.player.Avatar;
 
+import java.awt.*;
+import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author dmitry.mamonov
@@ -17,41 +21,11 @@ public class TestUseCases {
 
     public interface World extends Entity.Action {
         default void loop() {
-            System.out.println("============== World loop: Begin ==============");
             query(Ability.OnLoop.class, a -> a.step(0.9));
             dispose();
         }
 
-
-
-
         interface Ability {
-            interface Damageable {
-                default boolean isAlive() {
-                    return true;
-                }
-
-                default void damage(final double loss) {
-
-                }
-            }
-
-            interface Inflammable {
-                default void burn(final double temperature) {
-
-                }
-            }
-
-            interface Moveable {
-                default Moveable rotate(final double angle360) {
-                    return this;
-                }
-
-                default Moveable move(final double distance) {
-                    return this;
-                }
-            }
-
             interface Trigger extends Action {
                 default void fire() {
                     final Weapon weapon = find(Weapon.class);
@@ -167,6 +141,30 @@ public class TestUseCases {
     }
 
 
+    static class KeyAction {
+        final int code;
+        final double dx;
+        final double dy;
+
+        KeyAction(final int code, final double dx, final double dy) {
+            this.code = code;
+            this.dx = dx;
+            this.dy = dy;
+        }
+
+        public int getCode() {
+            return code;
+        }
+
+        public double getDx() {
+            return dx;
+        }
+
+        public double getDy() {
+            return dy;
+        }
+    }
+
     @Test
     public void testCreate() throws Exception {
         Entity.seed(root -> {
@@ -197,13 +195,40 @@ public class TestUseCases {
 
             trooper1.with(e -> e.action(World.Ability.Trigger.class).fire());
 
-            for (int i = 0; i < 10; i++) {
-                world.loop();
-            }
             System.out.println("DONE");
-            final JsonObject json = root.toJson();
-            System.out.println(json.toString().length()+", "+json);
-            Server.demo(json.toString());
+            final AtomicReference<String> state = new AtomicReference<>(root.toJson().toString());
+            final Server server = Server.create(time->state.get());
+            server.start();
+            try {
+                Desktop.getDesktop().open(new File("context/src/main/resources/frontend.html"));
+            } catch (final IOException e) {
+                e.printStackTrace();
+            }
+            while (!server.getPressedKeys().contains(27)){
+                for (final KeyAction keyAction : new KeyAction[]{
+                        new KeyAction(37, -0.1, 0.0), //left
+                        new KeyAction(39, +0.1, 0.0), //right
+                        new KeyAction(38, 0.0, -0.1), //up
+                        new KeyAction(40, 0.0, +0.1), //down
+                }) {
+                    if (server.getPressedKeys().contains(keyAction.getCode())) {
+                        root.query(Avatar.class, avatar -> {
+                            final double scale = 0.4;
+                            avatar.move(keyAction.getDx()*scale, keyAction.getDy()*scale);
+                        });
+                    }
+                }
+                final long start = System.currentTimeMillis();
+                world.loop();
+                state.set(root.toJson().toString());
+                try {
+                    final long passed = System.currentTimeMillis() - start;
+                    Thread.sleep(Math.max(1,30- passed));
+                } catch (final InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            System.exit(0);
         });
     }
 }
