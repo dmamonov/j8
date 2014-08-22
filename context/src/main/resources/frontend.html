@@ -6,9 +6,6 @@
     <script language="JavaScript" src="http://code.jquery.com/jquery-1.11.1.js"></script>
 </head>
 <body>
-<img src="http://cdn.droidtune.com/wp-content/uploads/2013/01/%D0%A2%D0%B0%D0%BD%D1%87%D0%B8%D0%BA%D0%B8-1990-android.png"
-     style="display: none"
-     id="tank"/>
 <table>
     <tr style="vertical-align: top">
         <td>
@@ -24,7 +21,7 @@
     var socket = new WebSocket("ws://localhost:8081");
     var pressed_keys = {};
 
-    function send_keys(){
+    function send_keys() {
         socket.send(JSON.stringify(pressed_keys));
     }
 
@@ -56,22 +53,32 @@
     g.lineTo(screen.width, screen.height);
     g.stroke();
 
-    function refresh(){
+    function refresh() {
         send_keys();
         setTimeout(refresh, 100);
     }
 
 
-
     var total_fremes = 0;
 
-    socket.onopen = function(event){
+    var textures = {};
+    function load_texture(tex_name){
+        var tex = new Image();
+        tex.src = 'texture/' + tex_name + '.jpg';
+        textures[tex_name]=tex;
+    }
+    load_texture('Water');
+    load_texture('Sand');
+    load_texture('Rock');
+    load_texture('Soil');
+
+    socket.onopen = function (event) {
         refresh();
     };
     socket.onmessage = function (event) {
         var renderingStart = Date.now();
         var resp = JSON.parse(event.data);
-        console.info("Rendering: " + event.data.length);
+//        console.info("Rendering: " + event.data.length);
 
         var screen = document.getElementById("screen");
         var g = screen.getContext('2d');
@@ -85,20 +92,26 @@
                 var texture = e.domain.texture.texture;
                 var x = e.domain.xy.x;
                 var y = e.domain.xy.y;
-                if (texture == 'Soil') {
-                    g.strokeStyle = "#C19A6B";
-                } else if (texture == 'Water') {
-                    g.strokeStyle = "Blue";
-                } else if (texture == 'Sand') {
-                    g.strokeStyle = "Yellow";
-                } else if (texture == 'Scree') {
-                    g.strokeStyle = "Red";
+                var tex = textures[texture];
+                if (tex) {
+                    g.drawImage(tex,
+                            x*16 % tex.width, y*16 % tex.height,16, 16,
+                            x,y,1,1);
                 } else {
-                    g.strokeStyle = 'Gray';
+                    if (texture == 'Soil') {
+                        g.strokeStyle = "#C19A6B";
+                    } else if (texture == 'Water') {
+                        g.strokeStyle = "Blue";
+                    } else if (texture == 'Sand') {
+                        g.strokeStyle = "Yellow";
+                    } else if (texture == 'Scree') {
+                        g.strokeStyle = "Red";
+                    } else {
+                        g.strokeStyle = 'Gray';
+                    }
+                    g.fillStyle = g.strokeStyle;
+                    g.fillRect(x, y, 1, 1);
                 }
-                g.fillStyle = g.strokeStyle;
-                g.fillRect(x, y, 1, 1);
-                console.log(x, y);
                 totalPrinted += 1;
                 g.restore();
             }
@@ -119,8 +132,8 @@
             }
         });
         g.restore();
-        total_fremes+=1;
-        screen_log(((Date.now()-renderingStart)).toFixed(2)+", frames "+total_fremes);
+        total_fremes += 1;
+        screen_log(((Date.now() - renderingStart)).toFixed(2) + ", frames " + total_fremes);
     };
 </script>
 
